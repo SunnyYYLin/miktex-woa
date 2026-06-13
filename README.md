@@ -4,6 +4,9 @@
 
 This project is a fork of the official [MiKTeX](https://github.com/MiKTeX/miktex) (v26.5 / `build-26.5` branch) tailored specifically for **Windows on ARM64 (WOA)**. By removing heavy Qt/MFC graphical interface dependencies (via a `-no-ui` lightweight build), it provides a stable, highly efficient, and native ARM64 TeX/LaTeX core engine toolchain with **fully automated, out-of-the-box deployment capabilities**.
 
+> [!NOTE]
+> This repository integrates and upstream-credits the native compilation settings from the community PR [#1698](https://github.com/MiKTeX/miktex/pull/1698) submitted by [@Grzzlwmpf](https://github.com/Grzzlwmpf) (such as GMP platform flags, Asymptote Windows.h headers, and Manifest CPU architecture alignment), ensuring full technical alignment with the official upstream development.
+
 ---
 
 ## 🚀 Key Adaptations & Fixes

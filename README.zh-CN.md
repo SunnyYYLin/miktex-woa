@@ -4,6 +4,9 @@
 
 本项目是官方 [MiKTeX](https://github.com/MiKTeX/miktex) 26.5 版本的 Fork 分支，专门针对 **Windows on ARM64 (WOA)** 架构进行了原生适配与编译优化。通过去除不必要的 Qt/MFC 图形界面依赖（进行 `-no-ui` 轻量化构建），实现了一套完全在 ARM64 架构下原生运行、稳定高效且具备**全自动开箱即用部署能力**的 TeX/LaTeX 核心编译链。
 
+> [!NOTE]
+> 本仓库已合并并致谢了来自上游社区 PR [#1698](https://github.com/MiKTeX/miktex/pull/1698)（由 [@Grzzlwmpf](https://github.com/Grzzlwmpf) 提交）的原生编译配置（包含 GMP 平台标志、Asymptote 头文件适配以及应用程序清单 CPU 架构对齐），确保与官方上游开发方向完全对齐。
+
 ---
 
 ## 🚀 相对于官方库的 Fork 适配改动
