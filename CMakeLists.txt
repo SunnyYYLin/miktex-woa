@@ -2573,16 +2573,38 @@ set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
 set(CPACK_WIX_PATCH_FILE "${CMAKE_SOURCE_DIR}/Packaging/wix-patch.xml")
 list(APPEND CPACK_WIX_EXTRA_SOURCES "${CMAKE_SOURCE_DIR}/Packaging/wix-custom-actions.wxs")
 
-# NSIS EXE 自动注册与 Post-Install 命令
-# 使用 powershell 安全追加和删除 PATH，避免 NSIS 内部变量受 1024 字节字符数限制而截断 PATH
+# 统一包名和安装文件夹名为 MiKTeX (不带版本号和空格)
+set(CPACK_PACKAGE_NAME "MiKTeX")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "MiKTeX")
+set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "MiKTeX")
+set(CPACK_NSIS_PACKAGE_NAME "MiKTeX")
+set(CPACK_NSIS_DISPLAY_NAME "MiKTeX")
+
+# 默认安装在当前用户本地 AppData，且运行安装程序时不强制要求管理员 UAC 权限
+set(CPACK_NSIS_INSTALL_ROOT "$LOCALAPPDATA\\\\Programs")
+set(CPACK_NSIS_REQUEST_EXECUTION_LEVEL "user")
+
+# 创建开始菜单快捷方式以支持 Windows 搜索栏索引并提供命令行入口
+set(CPACK_NSIS_CREATE_ICONS_EXTRA "
+  CreateDirectory '$SMPROGRAMS\\\\MiKTeX'
+  CreateShortCut '$SMPROGRAMS\\\\MiKTeX\\\\MiKTeX Command Prompt.lnk' '$SYSDIR\\\\cmd.exe' '/k \\\"echo ==================================================================== & echo  Welcome to MiKTeX (no-ui) Windows on ARM64! & echo ==================================================================== & echo  Available engines: xelatex, pdflatex, luatex, lualatex, miktex, etc. & echo  Current directory: %USERPROFILE% & echo ==================================================================== & cd /d %USERPROFILE%\\\"'
+")
+
+set(CPACK_NSIS_DELETE_ICONS_EXTRA "
+  Delete '$SMPROGRAMS\\\\MiKTeX\\\\MiKTeX Command Prompt.lnk'
+  RMDir '$SMPROGRAMS\\\\MiKTeX'
+")
+
+# NSIS EXE 自动注册与 Post-Install 移去管理限制
+# 使用 powershell 安全追加和删除当前用户的 PATH 变量，避免 1024 字节截断问题
 set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-  ExecWait '\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\\miktex.exe\" --admin links install'
-  ExecWait 'powershell -NoProfile -Command \"if (-not ([System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"Machine\\\") -like \\\"*$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64*\\\")) { [System.Environment]::SetEnvironmentVariable(\\\"PATH\\\", [System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"Machine\\\") + \\\";$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\", \\\"Machine\\\") }\"'
+  ExecWait '\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\\miktex.exe\" links install'
+  ExecWait 'powershell -NoProfile -Command \"if (-not ([System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"User\\\") -like \\\"*$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64*\\\")) { [System.Environment]::SetEnvironmentVariable(\\\"PATH\\\", [System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"User\\\") + \\\";$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\", \\\"User\\\") }\"'
 ")
 
 set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
-  ExecWait '\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\\miktex.exe\" --admin links remove'
-  ExecWait 'powershell -NoProfile -Command \"[System.Environment]::SetEnvironmentVariable(\\\"PATH\\\", [System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"Machine\\\").Replace(\\\";$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\", \\\"\\\").Replace(\\\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64;\\\", \\\"\\\"), \\\"Machine\\\")\"'
+  ExecWait '\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\\miktex.exe\" links remove'
+  ExecWait 'powershell -NoProfile -Command \"[System.Environment]::SetEnvironmentVariable(\\\"PATH\\\", [System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"User\\\").Replace(\\\";$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\", \\\"\\\").Replace(\\\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64;\\\", \\\"\\\"), \\\"User\\\")\"'
 ")
 
 set(CPACK_STRIP_SYMBOLS TRUE)
