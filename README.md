@@ -1,77 +1,78 @@
-# MiKTeX - Windows on ARM64 (WOA) 原生移植分支
+# MiKTeX - Native Port for Windows on ARM64 (WOA)
 
-本项目是官方 [MiKTeX](https://github.com/MiKTeX/miktex) 26.5 版本的 Fork 分支，专门针对 **Windows on ARM64 (WOA)** 架构进行了原生适配与编译优化。通过去除不必要的 Qt/MFC 图形界面依赖（进行 `-no-ui` 轻量化构建），实现了一套完全在 ARM64 架构下原生运行、稳定高效且具备**全自动开箱即用部署能力**的 TeX/LaTeX 核心编译链。
+**English** | [中文说明](./README.zh-CN.md)
 
----
-
-## 🚀 相对于官方库的 Fork 适配改动
-
-为了在 Windows on ARM64 环境下成功通过 MSVC 原生编译 MiKTeX 核心引擎，并保障自动依赖包下载和系统字体正常工作，本项目在官方源码及构建脚本中进行了以下关键性修复与适配：
-
-### 1. 底层图形与数学引擎适配
-* **Pixman SIMD 兼容修复**：排除了 x86 特有的 MMX/SSE 汇编源文件编译，避免 ARM64 MSVC 编译器报错。
-* **Cairo 库 DirectWrite API 提升**：在 ARM64 平台下取消了老旧的 `WITH_LEGACY_WINDOWS_SUPPORT`（原将其限制在 Vista API），强制提升目标 Windows 平台版本至 Windows 10 (`0x0a00`)，以兼容 Cairo 对 `IDWriteFontFace5` 等现代 API 的调用。
-* **LuaJIT 架构冲突规避**：剔除了 `luajit` 可选子模块的编译（其内置汇编虚拟机 `buildvm` 暂不支持 MSVC ARM64 交叉环境编译），转而直接使用原生轻量的 Lua 5.3 以确保 LuaTeX 稳定运作。
-
-### 2. 编译树并发与链接故障修复
-* **WebApp 并发编译头文件竞争修复**：为 WebApp 源文件和入口组件显式声明了 `OBJECT_DEPENDS` 规则，确保其依赖的自动生成头文件在编译前已经完整生成，根治了多线程并发编译时的文件丢失报错。
-* **COM 代理组件 MIDL 编译修复**：将 MIDL 编译器的生成目标架构由默认的 `amd64` 修正为原生 `arm64`；为 64 位平台启用 `/robust` 编译参数替代与 x64 冲突的 `/no_robust`，彻底解决了 `ProxyFileInfo` 等代理存根符号在链接阶段报错未定义的 LNK2001 故障。
-
-### 3. 打包自举资源固化与字体识别适配
-* **自举 Map 与官方签名 scripts 固化**：在打包列表中强合入了带官方加密数字签名的 `scripts.ini`，避免由于硬链接程序对签名的校验失败而引发的致命崩溃；同时固化了自举所需的 `updmap.cfg` 以及 dummy map 文件（`dvips35.map` 等），无需任何手动环境初始化，即可秒级通畅联网自动下载所缺宏包。
-* **系统中文字体自动识别**：在打包生成的 `fonts.conf.in` 字体配置模板中显式集成了 `WINDOWSFONTDIR`，使 xetex 等引擎能够直接精准识别和加载系统内置的中文字体（如宋体 `SimSun`、黑体 `SimHei` 等），彻底告别了中文字体检索异常导致的并发锁死问题。
-
-### 4. 安装包一键部署与自注册（WiX v4 & NSIS）
-* **系统 PATH 自动注册**：在安装包的构建配置中，直接动态注入了将实际可执行二进制路径 `\texmf\miktex\bin\x64` 注册到系统全局环境变量 `PATH` 的逻辑，并在卸载时安全剥离。
-  * **NSIS (EXE)**: 创新性地在 PostInstall 执行段使用了单行无分号的 PowerShell 原生操作脚本，避开了 NSIS 传统变量在处理长 PATH（大于 1024 字节）时会导致 PATH 瘫痪性截断的漏洞。
-  * **WiX (MSI)**: 采用 WiX v4 专业 XML 语法进行 Registry 的注入与维护。
-* **常用引擎硬链接静默构建**：在打包配置中挂载了后置执行指令，在文件解压完成后，静默且具备完整管理员权限自动在后台执行 `miktex.exe --admin links install` 生成所有经典编译引擎（`xelatex.exe`, `pdflatex.exe`, `latex.exe` 等）的物理硬链接，真正做到**即装即用，彻底零手动配置**。
+This project is a fork of the official [MiKTeX](https://github.com/MiKTeX/miktex) (v26.5 / `build-26.5` branch) tailored specifically for **Windows on ARM64 (WOA)**. By removing heavy Qt/MFC graphical interface dependencies (via a `-no-ui` lightweight build), it provides a stable, highly efficient, and native ARM64 TeX/LaTeX core engine toolchain with **fully automated, out-of-the-box deployment capabilities**.
 
 ---
 
-## 🛠️ 构建与编译打包指南
+## 🚀 Key Adaptations & Fixes
 
-### 1. 编译前置准备
-本项目采用 Microsoft Visual Studio 2022 进行原生 ARM64 编译。
-在编译前，需要使用 `vcpkg` 配合指定的 arm64 三元组准备好所有依赖库（如 icu, libressl, expat, libpng, zlib, popt 等）：
+To achieve a native MSVC compile on Windows on ARM64 and guarantee automated package installation and system fonts working flawlessly, we implemented the following fixes in the source tree:
+
+### 1. Graphics & Math Engine Compatibility
+* **Pixman SIMD Fix**: Excluded x86-specific MMX/SSE assembly and source files when building on ARM64 to prevent compilation failures.
+* **Cairo DirectWrite API Target Elevation**: Disabled `WITH_LEGACY_WINDOWS_SUPPORT` on ARM64 to elevate the target Windows version to Windows 10 (`0x0a00`). This ensures Cairo compiles successfully with modern DirectWrite interfaces like `IDWriteFontFace5`.
+* **LuaJIT Exclusion**: Bypassed compiling the optional `luajit` subproject (its built-in assembly engine compiler `buildvm` lacks native support for MSVC ARM64 compilation) and fallback to standard Lua 5.3 to keep LuaTeX stable.
+
+### 2. Parallel Build & Linker Fixes
+* **WebApp Header Build Race Condition Fix**: Explicitly defined `OBJECT_DEPENDS` in CMake for WebApp compilation, ensuring auto-generated headers are fully generated before source files are built.
+* **COM Proxy MIDL Compiling Fix**: Changed the MIDL compiler target environment `/env` from the default `amd64` to `arm64`. Swapped `/no_robust` with `/robust` on 64-bit platforms, entirely eliminating undefined symbol linker errors (LNK2001) for `ProxyFileInfo` and related proxy functions.
+
+### 3. Packaged Bootstrapping & Fonts Support
+* **Digitally Signed scripts.ini & Dummy Maps**: Packaged the official digitally signed `scripts.ini` file to pass MiKTeX's strict signature checks during `links install` setup. Included dummy maps (`dvips35.map`, `updmap.cfg`, etc.) in the package installation list to allow instant on-the-fly package downloads without any manual FNDB initialization.
+* **CJK System Fonts Mapping**: Configured `fonts.conf.in` template to explicitly include `WINDOWSFONTDIR` and `C:/Windows/Fonts`. XeTeX can now instantly index and use Windows built-in CJK fonts (e.g., `SimSun`, `SimHei`) out-of-the-box, resolving parallel database locking issues.
+
+### 4. Automated Installer Registry & Link Setup (WiX v4 & NSIS)
+* **Automatic PATH Registration**: Built-in installer scripts now dynamically calculate and append the nested binary path `\texmf\miktex\bin\x64` to the system-wide `PATH` environment variable, cleaning it up cleanly upon uninstallation.
+  * **NSIS (EXE)**: Utilizes a custom semicolon-free single-line PowerShell script to append/remove the path, avoiding the legacy NSIS limit (PATH truncation if it exceeds 1024 bytes).
+  * **WiX (MSI)**: Integrates modern WiX v4 Registry/Environment XML components.
+* **Engine Links Creation**: Triggers a post-installation custom action that runs `miktex.exe --admin links install` silently with elevated privileges, generating physical hard links for standard engines (`xelatex.exe`, `pdflatex.exe`, `latex.exe`, etc.) automatically. **Users can write LaTeX files immediately after a double-click install.**
+
+---
+
+## 🛠️ Build & Packaging Instructions
+
+### 1. Prerequisites
+We use Microsoft Visual Studio 2022 to build for native ARM64.
+First, fetch and install the required dependencies through `vcpkg` targeting the `arm64-windows` triplet:
 
 ```powershell
-# 使用 vcpkg 安装原生 ARM64 依赖
 vcpkg install --triplet=arm64-windows
 ```
 
-### 2. CMake 编译核心工具链 (no-ui)
-在项目根目录下，创建一个独立的构建文件夹，并通过 CMake 显式配置移去 Qt 与 MFC 的 UI 支持，只构建底层核心工具链：
+### 2. Compile Core Toolchain (no-ui)
+Create a separate build folder and configure CMake to compile the core engines without UI dependencies (MFC/Qt):
 
 ```powershell
-# 1. 创建并进入构建目录
+# 1. Create and navigate to the build directory
 mkdir build-no-ui
 cd build-no-ui
 
-# 2. CMake 配置（显式指定 VS2022 + ARM64 架构 + vcpkg 工具链 + 关闭 UI/Qt/MFC 编译）
+# 2. Configure CMake with vcpkg toolchain for ARM64 Release
 cmake -G "Visual Studio 17 2022" -A ARM64 `
   -DCMAKE_TOOLCHAIN_FILE="C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake" `
   -DMIKTEX_UI_QT=OFF -DMIKTEX_UI_MFC=OFF -DWITH_UI=OFF -DWITH_MAN_PAGES=OFF ..
 
-# 3. 预先构建配置文件目标
+# 3. Generate prerequisite config files
 cmake --build . --config Release --target gen-config-files
 
-# 4. 执行多核并行编译
+# 4. Compile in parallel
 cmake --build . --config Release --parallel
 ```
 
-### 3. 生成发布包 (CPack)
-在 `build-no-ui` 编译输出目录下，可根据您的需求通过 CPack 命令打包输出以下三种格式的包。
+### 3. Generate Installers (CPack)
+Run the following commands inside your `build-no-ui` folder to generate the installers.
 
 > [!IMPORTANT]
-> 由于系统上只有新版 WiX v4 架构环境 (`wix.cmd`)，生成 MSI 包时，必须通过 `-D` 指明 WiX v4 的代理执行路径。
+> Since only WiX v4 is installed on your machine (`wix.cmd`), we must supply additional variables to target the WiX v4 compiler bridge during MSI packaging.
 
-#### 📦 A. 生成统一安装包 (NSIS `.exe` 格式)
+#### 📦 A. Unified Installer (NSIS `.exe`)
 ```powershell
 C:\Users\Sunny\scoop\apps\cmake\current\bin\cpack.exe -D CPACK_PACKAGE_FILE_NAME="MiKTeX-26.5-windows-arm64"
 ```
 
-#### 📦 B. 生成专业安装包 (WiX `.msi` 格式)
+#### 📦 B. Professional Installer (WiX `.msi`)
 ```powershell
 C:\Users\Sunny\scoop\apps\cmake\current\bin\cpack.exe -G WIX `
   -D CPACK_WIX_VERSION=4 `
@@ -82,18 +83,18 @@ C:\Users\Sunny\scoop\apps\cmake\current\bin\cpack.exe -G WIX `
   -D CPACK_PACKAGE_FILE_NAME="MiKTeX-26.5-windows-arm64"
 ```
 
-#### 📦 C. 生成绿色免安装压缩包 (`.zip` 格式)
+#### 📦 C. Green Portable Package (`.zip`)
 ```powershell
 C:\Users\Sunny\scoop\apps\cmake\current\bin\cpack.exe -G ZIP -D CPACK_PACKAGE_FILE_NAME="miktex-woa-portable"
 ```
 
 ---
 
-## 📖 安装与使用说明
+## 📖 Installation & Usage
 
-1. **一键安装**：双击下载好的 `MiKTeX-26.5-windows-arm64.msi`（或 `.exe`）安装程序，完成安装。
-2. **免配置直接使用**：安装完成后，**无需运行任何初始化或环境变量配置脚本**。直接打开任意全新的终端（CMD/PowerShell）切到您的 LaTeX 项目目录，即可开始一键编译：
+1. **One-Click Installation**: Double-click `MiKTeX-26.5-windows-arm64.msi` (or `.exe`) and follow the installer prompts.
+2. **Instant Use**: Once installed, **no manual configuration or path editing is needed**. Just open a new Command Prompt or PowerShell, navigate to your LaTeX directory, and run:
    ```powershell
    xelatex Thesis.tex
    ```
-3. **便携模式 (Portable)**：如果您完全不想向系统注册表写入任何内容或修改 `AppData`，直接解压 `miktex-woa-portable.zip` 并使用解压目录下的 `texmf\miktex\bin\x64\xelatex.exe` 进行编译即可，它会将所有的缓存和配置文件完全保留在解压路径中，保持系统绝对纯净。
+3. **Portable Mode**: If you want to keep your system Registry and `AppData` completely clean, unzip `miktex-woa-portable.zip` and directly use `texmf\miktex\bin\x64\xelatex.exe`. All downloaded styles/packages and configs will remain encapsulated inside the portable directory.
