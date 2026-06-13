@@ -5,7 +5,7 @@
 This project is a fork of the official [MiKTeX](https://github.com/MiKTeX/miktex) (v26.5 / `build-26.5` branch) tailored specifically for **Windows on ARM64 (WOA)**. By removing heavy Qt/MFC graphical interface dependencies (via a `-no-ui` lightweight build), it provides a stable, highly efficient, and native ARM64 TeX/LaTeX core engine toolchain with **fully automated, out-of-the-box deployment capabilities**.
 
 > [!NOTE]
-> This repository integrates and upstream-credits the native compilation settings from the community PR [#1698](https://github.com/MiKTeX/miktex/pull/1698) submitted by [@Grzzlwmpf](https://github.com/Grzzlwmpf) (such as GMP platform flags, Asymptote Windows.h headers, and Manifest CPU architecture alignment), ensuring full technical alignment with the official upstream development.
+> This branch integrates the native Windows ARM64 compilation settings from the community PR [#1698](https://github.com/MiKTeX/miktex/pull/1698) (submitted by [@Grzzlwmpf](https://github.com/Grzzlwmpf)), which includes GMP platform flags, Asymptote header fixes, and CPU architecture manifests alignment.
 
 ---
 
@@ -23,14 +23,15 @@ To achieve a native MSVC compile on Windows on ARM64 and guarantee automated pac
 * **COM Proxy MIDL Compiling Fix**: Changed the MIDL compiler target environment `/env` from the default `amd64` to `arm64`. Swapped `/no_robust` with `/robust` on 64-bit platforms, entirely eliminating undefined symbol linker errors (LNK2001) for `ProxyFileInfo` and related proxy functions.
 
 ### 3. Packaged Bootstrapping & Fonts Support
-* **Digitally Signed scripts.ini & Dummy Maps**: Packaged the official digitally signed `scripts.ini` file to pass MiKTeX's strict signature checks during `links install` setup. Included dummy maps (`dvips35.map`, `updmap.cfg`, etc.) in the package installation list to allow instant on-the-fly package downloads without any manual FNDB initialization.
-* **CJK System Fonts Mapping**: Configured `fonts.conf.in` template to explicitly include `WINDOWSFONTDIR` and `C:/Windows/Fonts`. XeTeX can now instantly index and use Windows built-in CJK fonts (e.g., `SimSun`, `SimHei`) out-of-the-box, resolving parallel database locking issues.
+* **Digitally Signed scripts.ini & Dummy Maps**: Packaged the official digitally signed `scripts.ini` file to pass MiKTeX's strict signature checks during dynamic package downloading. Included dummy maps (`dvips35.map`, `updmap.cfg`, etc.) in the package installation list to allow instant on-the-fly package downloads without manual FNDB initialization.
+* **CJK System Fonts Mapping**: Configured `fonts.conf.in` template to explicitly include `WINDOWSFONTDIR`. XeTeX can now instantly index and use Windows built-in CJK fonts (e.g., `SimSun`, `SimHei`) out-of-the-box, resolving parallel database locking issues.
 
-### 4. Automated Installer Registry & Link Setup (WiX v4 & NSIS)
-* **Automatic PATH Registration**: Built-in installer scripts now dynamically calculate and append the nested binary path `\texmf\miktex\bin\x64` to the system-wide `PATH` environment variable, cleaning it up cleanly upon uninstallation.
-  * **NSIS (EXE)**: Utilizes a custom semicolon-free single-line PowerShell script to append/remove the path, avoiding the legacy NSIS limit (PATH truncation if it exceeds 1024 bytes).
-  * **WiX (MSI)**: Integrates modern WiX v4 Registry/Environment XML components.
-* **Engine Links Creation**: Triggers a post-installation custom action that runs `miktex.exe --admin links install` silently with elevated privileges, generating physical hard links for standard engines (`xelatex.exe`, `pdflatex.exe`, `latex.exe`, etc.) automatically. **Users can write LaTeX files immediately after a double-click install.**
+### 4. Automated Registry & Start Menu Setup (NSIS)
+* **User-level PATH Registration**: Installs the binary path `\texmf\miktex\bin\x64` to the **current user's environment `PATH`** (User PATH) rather than the machine-wide PATH, cleaning it up upon uninstallation.
+  * **Safe Append**: Utilizes a single-line PowerShell action to append the path, bypassing the legacy 1024-character NSIS PATH truncation limitation.
+* **No-Privilege Installation (Per-User)**: The installer requests standard `user` execution level (**no UAC admin prompt required**), defaulting its directory to the user's local AppData folder (`%LOCALAPPDATA%\Programs\MiKTeX`).
+* **Silent Link Creation**: Installs standard engine physical hard links (`xelatex.exe`, `pdflatex.exe`, `latex.exe`, etc.) silently on setup completion by running `miktex.exe links install`.
+* **Start Menu Quick Launch**: Registers a `MiKTeX Command Prompt` shortcut in the user's Start Menu. Typing `MiKTeX` in the Windows Search Bar instantly reveals the command prompt shortcut, opening a fully initialized TeX console ready to run `xelatex`.
 
 ---
 
@@ -54,7 +55,7 @@ cd build-no-ui
 
 # 2. Configure CMake with vcpkg toolchain for ARM64 Release
 cmake -G "Visual Studio 17 2022" -A ARM64 `
-  -DCMAKE_TOOLCHAIN_FILE="C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+  -DCMAKE_TOOLCHAIN_FILE="<vcpkg_path>/scripts/buildsystems/vcpkg.cmake" `
   -DMIKTEX_UI_QT=OFF -DMIKTEX_UI_MFC=OFF -DWITH_UI=OFF -DWITH_MAN_PAGES=OFF ..
 
 # 3. Generate prerequisite config files
@@ -65,38 +66,36 @@ cmake --build . --config Release --parallel
 ```
 
 ### 3. Generate Installers (CPack)
-Run the following commands inside your `build-no-ui` folder to generate the installers.
+Run the following CPack commands inside your `build-no-ui` folder to generate the package format of choice.
 
-> [!IMPORTANT]
-> Since only WiX v4 is installed on your machine (`wix.cmd`), we must supply additional variables to target the WiX v4 compiler bridge during MSI packaging.
-
-#### 📦 A. Unified Installer (NSIS `.exe`)
+#### 📦 A. Setup Installer (NSIS `.exe`)
 ```powershell
-C:\Users\Sunny\scoop\apps\cmake\current\bin\cpack.exe -D CPACK_PACKAGE_FILE_NAME="MiKTeX-26.5-windows-arm64"
+cpack -G NSIS -D CPACK_PACKAGE_FILE_NAME="MiKTeX-26.5-windows-arm64"
 ```
 
-#### 📦 B. Professional Installer (WiX `.msi`)
+#### 📦 B. Setup Installer (WiX `.msi`)
+If packaging with WiX v4 compiler, specify your local WiX tool path in the command:
 ```powershell
-C:\Users\Sunny\scoop\apps\cmake\current\bin\cpack.exe -G WIX `
+cpack -G WIX `
   -D CPACK_WIX_VERSION=4 `
-  -D CPACK_WIX_EXECUTABLE="C:\Users\Sunny\scoop\shims\wix.cmd" `
+  -D CPACK_WIX_EXECUTABLE="<path_to_wix_executable>" `
   -D CPACK_PACKAGE_NAME="MiKTeX" `
-  -D CPACK_NSIS_DISPLAY_NAME="MiKTeX 26.5" `
-  -D CPACK_PACKAGE_INSTALL_DIRECTORY="MiKTeX 26.5" `
+  -D CPACK_NSIS_DISPLAY_NAME="MiKTeX" `
+  -D CPACK_PACKAGE_INSTALL_DIRECTORY="MiKTeX" `
   -D CPACK_PACKAGE_FILE_NAME="MiKTeX-26.5-windows-arm64"
 ```
 
-#### 📦 C. Green Portable Package (`.zip`)
+#### 📦 C. Portable Zip Package (`.zip`)
 ```powershell
-C:\Users\Sunny\scoop\apps\cmake\current\bin\cpack.exe -G ZIP -D CPACK_PACKAGE_FILE_NAME="miktex-woa-portable"
+cpack -G ZIP -D CPACK_PACKAGE_FILE_NAME="miktex-woa-portable"
 ```
 
 ---
 
 ## 📖 Installation & Usage
 
-1. **One-Click Installation**: Double-click `MiKTeX-26.5-windows-arm64.msi` (or `.exe`) and follow the installer prompts.
-2. **Instant Use**: Once installed, **no manual configuration or path editing is needed**. Just open a new Command Prompt or PowerShell, navigate to your LaTeX directory, and run:
+1. **One-Click Installation**: Double-click `MiKTeX-26.5-windows-arm64.exe` (or `.msi`) and follow the installer prompts. No admin prompt is required.
+2. **Instant Use**: Once installed, **no manual configuration or path editing is needed**. Just open the Windows Start Menu, search for `MiKTeX`, and launch **`MiKTeX Command Prompt`**. You can compile your LaTeX project directly:
    ```powershell
    xelatex Thesis.tex
    ```
