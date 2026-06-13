@@ -1,6 +1,6 @@
 <CPackWiXPatch>
   <!-- 当安装 miktex.exe 组件时，把它的目录加入 PATH 环境变量中 -->
   <CPackWiXFragment Id="CM_CP_texmf.miktex.bin.x64.miktex.exe">
-    <Environment Id="MiKTeXBinPath" Action="set" Name="PATH" Value="[INSTALL_ROOT]texmf\miktex\bin\x64" Permanent="no" Part="last" System="yes" />
+    <Environment Id="MiKTeXBinPath" Action="set" Name="PATH" Value="[INSTALL_ROOT]texmf\miktex\bin\x64" Permanent="no" Part="last" System="no" />
   </CPackWiXFragment>
 </CPackWiXPatch>

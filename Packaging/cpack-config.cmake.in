@@ -17,3 +17,8 @@ if("${CPACK_GENERATOR}" STREQUAL "DragNDrop")
         "MiKTeX"
     )
 endif()
+
+if("${CPACK_GENERATOR}" STREQUAL "NSIS")
+    set(CPACK_TEMPLATES_DIR "@CMAKE_SOURCE_DIR@/Packaging")
+    set(CPACK_NSIS_TEMPLATE "@CMAKE_SOURCE_DIR@/Packaging/NSIS.template.in")
+endif()
