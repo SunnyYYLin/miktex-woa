@@ -160,6 +160,12 @@ MIKTEX_DEFINE_WEBAPP(MiKTeX_${_name_u},
         HEADER_FILE_ONLY TRUE
     )
 
+    set_source_files_properties(
+        ${CMAKE_CURRENT_BINARY_DIR}/${_short_name_l}.cc
+        ${CMAKE_CURRENT_BINARY_DIR}/${_short_name_l}main.cpp
+        PROPERTIES OBJECT_DEPENDS ${${_short_name_l}_header_file}
+    )
+
     if(MIKTEX_NATIVE_WINDOWS)
         set_source_files_properties(
             ${CMAKE_CURRENT_BINARY_DIR}/${_short_name_l}wrapper.cpp

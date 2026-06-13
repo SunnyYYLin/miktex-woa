@@ -77,10 +77,15 @@ set(mpm_ps_sources
   ${generated_mpm_ps_sources}
 )
 
-if(CMAKE_CL_64)
+if(CMAKE_GENERATOR_PLATFORM MATCHES "ARM64" OR CMAKE_VS_PLATFORM_NAME MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+  set(env "arm64")
+  set(robust_flag "/robust")
+elseif(CMAKE_CL_64)
   set(env "amd64")
+  set(robust_flag "/robust")
 else()
   set(env "win32")
+  set(robust_flag "/no_robust")
 endif()
 
 file(MAKE_DIRECTORY ${mpm_binary_dir}/include)
@@ -103,7 +108,7 @@ add_custom_command(
     /h ${mpm_binary_dir}/include/${mpmidl_h}
     /iid ${CMAKE_CURRENT_BINARY_DIR}/mpm_i.c
     /proxy ${CMAKE_CURRENT_BINARY_DIR}/mpm_p.c
-    /no_robust
+    ${robust_flag}
     ${CMAKE_CURRENT_BINARY_DIR}/${mpm_idl}
   DEPENDS
     ${CMAKE_CURRENT_BINARY_DIR}/${mpm_idl}

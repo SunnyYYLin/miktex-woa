@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Fragment>
+    <!-- 1. 定义安装时的 CustomAction，运行 miktex.exe -admin links install -->
+    <CustomAction Id="RunPostInstallLinks"
+                  FileRef="CM_FP_texmf.miktex.bin.x64.miktex.exe"
+                  ExeCommand="--admin links install"
+                  Execute="deferred"
+                  Return="check"
+                  Impersonate="no" />
+
+    <!-- 2. 定义卸载时的 CustomAction，运行 miktex.exe -admin links remove -->
+    <CustomAction Id="RunPreUninstallLinks"
+                  FileRef="CM_FP_texmf.miktex.bin.x64.miktex.exe"
+                  ExeCommand="--admin links remove"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no" />
+
+    <!-- 3. 将 Action 注册到执行队列 -->
+    <InstallExecuteSequence>
+      <!-- 在安装文件结束后运行创建链接 -->
+      <Custom Action="RunPostInstallLinks" After="InstallFiles" Condition="NOT Installed" />
+      <!-- 在删除文件开始前运行清理链接 -->
+      <Custom Action="RunPreUninstallLinks" Before="RemoveFiles" Condition="Installed" />
+    </InstallExecuteSequence>
+  </Fragment>
+</Wix>

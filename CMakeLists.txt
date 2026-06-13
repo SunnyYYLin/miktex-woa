@@ -519,6 +519,10 @@ option(
     TRUE
 )
 
+if(CMAKE_GENERATOR_PLATFORM MATCHES "ARM64" OR CMAKE_VS_PLATFORM_NAME MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    set(WITH_LEGACY_WINDOWS_SUPPORT FALSE CACHE BOOL "Wether to support Windows 7/8." FORCE)
+endif()
+
 option(
     INSTALL_MIKTEX_HEADERS
     "Install the MiKTeX header files."
@@ -2277,7 +2281,7 @@ if(MIKTEX_NATIVE_WINDOWS)
     add_subdirectory(${MIKTEX_REL_UTF8WRAP_DIR})
 endif()
 
-if(MIKTEX_NATIVE_WINDOWS)
+if(MIKTEX_NATIVE_WINDOWS AND NOT (CMAKE_GENERATOR_PLATFORM MATCHES "ARM64" OR CMAKE_VS_PLATFORM_NAME MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64"))
     add_subdirectory(${MIKTEX_REL_LUAJIT_DIR})
 endif()
 
@@ -2561,6 +2565,22 @@ set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
     "/usr/share/man/man5"
     "/usr/share/pixmaps"
 )
+
+# WiX MSI 自动注册与 Post-Install 补丁
+set(CPACK_WIX_PATCH_FILE "${CMAKE_SOURCE_DIR}/Packaging/wix-patch.xml")
+list(APPEND CPACK_WIX_EXTRA_SOURCES "${CMAKE_SOURCE_DIR}/Packaging/wix-custom-actions.wxs")
+
+# NSIS EXE 自动注册与 Post-Install 命令
+# 使用 powershell 安全追加和删除 PATH，避免 NSIS 内部变量受 1024 字节字符数限制而截断 PATH
+set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+  ExecWait '\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\\miktex.exe\" --admin links install'
+  ExecWait 'powershell -NoProfile -Command \"if (-not ([System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"Machine\\\") -like \\\"*$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64*\\\")) { [System.Environment]::SetEnvironmentVariable(\\\"PATH\\\", [System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"Machine\\\") + \\\";$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\", \\\"Machine\\\") }\"'
+")
+
+set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
+  ExecWait '\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\\miktex.exe\" --admin links remove'
+  ExecWait 'powershell -NoProfile -Command \"[System.Environment]::SetEnvironmentVariable(\\\"PATH\\\", [System.Environment]::GetEnvironmentVariable(\\\"PATH\\\", \\\"Machine\\\").Replace(\\\";$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64\\\", \\\"\\\").Replace(\\\"$INSTDIR\\\\texmf\\\\miktex\\\\bin\\\\x64;\\\", \\\"\\\"), \\\"Machine\\\")\"'
+")
 
 set(CPACK_STRIP_SYMBOLS TRUE)
 

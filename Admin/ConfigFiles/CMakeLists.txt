@@ -180,3 +180,28 @@ install(
     DESTINATION
         ${MIKTEX_CONFIG_DESTINATION_DIR}/${MIKTEX_SHORTEST_TARGET_SYSTEM_TAG_WIN}
 )
+
+# Install bootstrap configuration files
+install(
+    FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/updmap.cfg
+        ${CMAKE_CURRENT_SOURCE_DIR}/scripts.ini
+    DESTINATION
+        ${MIKTEX_CONFIG_DESTINATION_DIR}
+)
+
+install(
+    FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/fonts.conf.in
+    DESTINATION
+        texmf/fontconfig/config
+)
+
+install(
+    FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/dvips35.map
+        ${CMAKE_CURRENT_SOURCE_DIR}/pdftex35.map
+        ${CMAKE_CURRENT_SOURCE_DIR}/ps2pk35.map
+    DESTINATION
+        texmf/fonts/map/dvips/dummy
+)

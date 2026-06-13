@@ -57,10 +57,15 @@ set(core_ps_sources
     ${generated_core_ps_sources}
 )
 
-if(CMAKE_CL_64)
+if(CMAKE_GENERATOR_PLATFORM MATCHES "ARM64" OR CMAKE_VS_PLATFORM_NAME MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    set(env "arm64")
+    set(robust_flag "/robust")
+elseif(CMAKE_CL_64)
     set(env "amd64")
+    set(robust_flag "/robust")
 else()
     set(env "win32")
+    set(robust_flag "/no_robust")
 endif()
 
 file(MAKE_DIRECTORY ${core_binary_dir}/include)
@@ -76,7 +81,7 @@ add_custom_command(
             /env ${env}
             /Oicf
             /h ${core_binary_dir}/include/miktexidl.h
-            /no_robust
+            ${robust_flag}
             ${core_source_dir}/include/miktexidl.idl
     DEPENDS
         ${core_source_dir}/include/miktexidl.idl
@@ -101,7 +106,7 @@ add_custom_command(
             /h ${core_binary_dir}/include/${sessionidl_h}
             /iid ${CMAKE_CURRENT_BINARY_DIR}/session_i.c
             /proxy ${CMAKE_CURRENT_BINARY_DIR}/session_p.c
-            /no_robust
+            ${robust_flag}
             ${CMAKE_CURRENT_BINARY_DIR}/${session_idl}
     DEPENDS
         ${CMAKE_CURRENT_BINARY_DIR}/${session_idl}

@@ -2,3 +2,5 @@
 /.vs
 /build
 /out
+/build-no-ui
+/*.zip
